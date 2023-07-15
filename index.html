@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+
+<meta name="color-scheme" content="light dark">
+
+<style>
+	.chat {
+		font-family: sans-serif;
+		font-size: 12px;
+	}
+	.text-message img, .paid-message img, .membership-item img {
+		height: 24px;
+	}
+	.paid-message .header, .membership-item .header {
+		display: flex;
+	}
+	.paid-message .photo img, .membership-item .photo img {
+		height: 40px;
+	}
+	
+</style>
+
+<input class="file" type="file" />
+
+<button class="clear">x</button>
+
+<div class="chat-container"></div>
+
+<script>
+	const chatContainer = document.querySelector(".chat-container");
+
+	const file = document.querySelector(".file");
+
+	file.oninput = e => {
+		if (!e.target.files[0]) return;
+		
+		const perfTime = performance.now();
+
+		chatContainer.textContent = "Loading...";
+
+		const reader = new FileReader();
+		reader.onload = e => {
+			const chat = document.createElement("div");
+			chat.classList.add("chat");
+
+			const lines = e.target.result.split("\n");
+			
+			for (const [index, line] of lines.entries()) {
+				if (line == "") break;
+
+				const j = JSON.parse(line);
+				// console.log(j);
+
+				// console.log(index, "/", lines.length);
+
+				if (j.replayChatItemAction.actions.length != 1) debugger;
+
+				for (const action of j.replayChatItemAction.actions) {
+
+					if (action.addChatItemAction) {
+						const item = action.addChatItemAction.item;
+
+						const getChatRendererInfo = messageRenderer => {
+							const author = messageRenderer.authorName.simpleText;
+							const photos = messageRenderer.authorPhoto.thumbnails;
+							const photoUrl = photos[photos.length - 1].url;
+
+							const channel = messageRenderer.authorExternalChannelId;
+							const channelUrl = "https://youtube.com/channel/" + channel;
+
+							const time = messageRenderer.timestampText.simpleText;
+
+							let text = parseRuns(messageRenderer.message?.runs);
+
+							return {author, photoUrl, channelUrl, time, text};
+						}
+
+						const parseRuns = runs => {
+							const elem = document.createElement("span");
+
+							if (!runs) return elem;
+
+							for (const run of runs) {
+								if (run.text) {
+									if (run.navigationEndpoint) {
+										const a = document.createElement("a");
+										a.href = run.navigationEndpoint.urlEndpoint.url;
+										a.textContent = run.text;
+										elem.append(a);
+									} else {
+										elem.append(document.createTextNode(run.text));
+									}
+								} else if (run.emoji) {
+									if (run.emoji.isCustomEmoji) {
+										const img = document.createElement("img");
+										img.src = run.emoji.image.thumbnails[run.emoji.image.thumbnails.length-1].url;
+										img.title = run.emoji.image.accessibility.accessibilityData.label;
+										elem.append(img);
+									} else {
+										elem.append(document.createTextNode(run.emoji.emojiId));
+									}
+								} else {
+									debugger;
+								}
+							}
+							return elem;
+						}
+
+						if (item.liveChatViewerEngagementMessageRenderer) {
+							//
+						} else if (item.liveChatTextMessageRenderer) {
+							const info = getChatRendererInfo(item.liveChatTextMessageRenderer);
+
+							const div = document.createElement("div");
+							div.classList.add("text-message");
+							div.innerHTML = `
+								<span><img src="${info.photoUrl}"/></span>
+								<span>
+									<span>${info.time}</span>
+									<b><a href="${info.channelUrl}">${info.author}</a></b>
+									${info.text.outerHTML}
+								</span>
+							`;
+							chat.append(div);
+
+						} else if (item.liveChatPaidMessageRenderer) {
+							const info = getChatRendererInfo(item.liveChatPaidMessageRenderer);
+
+							const purchaseAmount = item.liveChatPaidMessageRenderer.purchaseAmountText.simpleText;
+
+							const toCSSColor = color => {
+								const a = ((color >> 24) & 0xff) / 255;
+								const r = (color >> 16) & 0xff;
+								const g = (color >>  8) & 0xff;
+								const b = (color) & 0xff;
+								return `rgba(${r}, ${g}, ${b}, ${a})`;
+							};
+
+							const headerBackgroundColor = toCSSColor(item.liveChatPaidMessageRenderer.headerBackgroundColor);
+							const headerTextColor = toCSSColor(item.liveChatPaidMessageRenderer.headerTextColor);
+							const bodyBackgroundColor = toCSSColor(item.liveChatPaidMessageRenderer.bodyBackgroundColor);
+							const bodyTextColor = toCSSColor(item.liveChatPaidMessageRenderer.bodyTextColor);
+							const authorNameTextColor = toCSSColor(item.liveChatPaidMessageRenderer.authorNameTextColor);
+							const timestampColor = toCSSColor(item.liveChatPaidMessageRenderer.timestampColor);
+
+							const div = document.createElement("div");
+							div.classList.add("paid-message");
+							div.innerHTML = `
+								<div class="header" style="background-color: ${headerBackgroundColor}; color: ${headerTextColor};">
+									<span class="photo"><img src="${info.photoUrl}"/></span>
+									<span>
+										<span style="color: ${timestampColor};">${info.time}</span>
+										<b><a style="color: ${authorNameTextColor};" href="${info.channelUrl}">${info.author}</a></b>
+										<br/>
+										<b>${purchaseAmount}</b>
+									</span>
+								</div>
+								<div style="background-color: ${bodyBackgroundColor}; color: ${bodyTextColor};">
+									${info.text.outerHTML}
+								</div>
+							`;
+							chat.append(div);
+
+						} else if (item.liveChatMembershipItemRenderer) {
+							const info = getChatRendererInfo(item.liveChatMembershipItemRenderer);
+
+							const headerPrimary = parseRuns(item.liveChatMembershipItemRenderer.headerPrimaryText?.runs);
+							const headerSub = item.liveChatMembershipItemRenderer.headerSubtext.simpleText;
+
+							// authorBadges
+
+							const div = document.createElement("div");
+							div.classList.add("membership-item");
+							div.innerHTML = `
+								<div class="header">
+									<span class="photo"><img src="${info.photoUrl}"/></span>
+									<span>
+										<span>${info.time}</span>
+										<b><a href="${info.channelUrl}">${info.author}</a></b>
+										<br/>
+										<b>${headerPrimary.outerHTML}</b>
+										<b>${headerSub}</b>
+									</span>
+								</div>
+								<div>
+									${info.text.outerHTML}
+								</div>
+							`;
+							chat.append(div);
+						} else {
+							debugger;
+						}
+					} else if (action.addLiveChatTickerItemAction) {
+						//
+					} else if (action.addBannerToLiveChatCommand) {
+						//
+					} else if (action.removeBannerForLiveChatCommand) {
+						//
+					} else {
+						debugger;
+					}
+				}
+			}
+
+			chatContainer.textContent = "";
+			chatContainer.append(chat);
+
+			console.log("Took", performance.now() - perfTime, "ms");
+		};
+		reader.readAsText(e.target.files[0]);
+	}
+
+	const clear = document.querySelector(".clear");
+	clear.onclick = () => {
+		file.value = null;
+		chatContainer.textContent = "";
+	}
+</script>
