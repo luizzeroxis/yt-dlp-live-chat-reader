@@ -96,7 +96,7 @@
 				if (line == "") break;
 
 				const j = JSON.parse(line);
-
+				const videoOffset = Number(j.videoOffsetTimeMsec || j.replayChatItemAction.videoOffsetTimeMsec)/1000;
 				if (j.replayChatItemAction.actions.length != 1) debugger;
 
 				for (const action of j.replayChatItemAction.actions) {
@@ -109,9 +109,12 @@
 
 							const channel = messageRenderer.authorExternalChannelId;
 							const channelUrl = "https://youtube.com/channel/" + channel;
-
-							const time = messageRenderer.timestampText.simpleText;
-
+							
+							var time = '';
+							if (videoOffset < 0) {time = '-'}
+							if (Math.abs(videoOffset) > 3600) {time = time + Math.floor(Math.abs(((videoOffset/60)/60)%60)).toString().padStart(2,'0') + ':'}
+							time = time+Math.floor(Math.abs((videoOffset/60)%60)).toString().padStart(2,'0')+':'+Math.floor(Math.abs(videoOffset%60)).toString().padStart(2,'0');
+							
 							let text = parseRuns(messageRenderer.message?.runs);
 
 							return { author, photoUrl, channelUrl, time, text };
