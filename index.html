@@ -103,7 +103,7 @@
 
 					if (action.addChatItemAction) {
 						const getChatRendererInfo = messageRenderer => {
-							const author = messageRenderer.authorName.simpleText;
+							const author = messageRenderer.authorName?.simpleText;
 							const photos = messageRenderer.authorPhoto.thumbnails;
 							const photoUrl = photos[photos.length - 1].url;
 
@@ -173,7 +173,7 @@
 						} else if (item.liveChatPaidMessageRenderer) {
 							const info = getChatRendererInfo(item.liveChatPaidMessageRenderer);
 
-							const purchaseAmount = item.liveChatPaidMessageRenderer.purchaseAmountText.simpleText;
+							const purchaseAmount = item.liveChatPaidMessageRenderer?.purchaseAmountText?.simpleText;
 
 							const toCSSColor = color => {
 								const a = ((color >> 24) & 0xff) / 255;
